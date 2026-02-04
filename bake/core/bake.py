@@ -56,8 +56,7 @@ class Bake:
             )
 
             # 2. RBF Coefficients (Geometric Progression)
-            # 0.1 (Micro) -> 0.4 (Meso) -> 1.6 (Macro)
-            self.coeffs = [0.1, 0.4, 1.6]
+            self.coeffs = 0.5
 
         def forward(self, x):
             """
@@ -65,13 +64,13 @@ class Bake:
             Lp = 2*L - 1
             ap = 2*a
             bp = 2*b
-            Output: out (B, 96, H, W)
+            Output: out (B, 30, H, W)
             """
-            # --- Part 1: Signal Replication (24 Channels) ---
-            # 원본 신호의 흐름을 강화하기 위해 8회 반복
-            part1 = x.repeat(1, 8, 1, 1)
+            # --- Part 1: Signal Replication (6 Channels) ---
+            # 원본 신호의 흐름을 강화하기 위해 2회 반복
+            part1 = x.repeat(1, 2, 1, 1)
 
-            # --- Part 2: RBF Global Context (72 Channels) ---
+            # --- Part 2: RBF Global Context (24 Channels) ---
             # 1. Squared Euclidean Distance Calculation
             # (B, 1, 3, H, W) - (1, 24, 3, 1, 1) Broadcasting
             diff = x.unsqueeze(1) - self.macbeth_refs
@@ -79,37 +78,37 @@ class Bake:
 
             # 2. Gaussian RBF Application
             rbf_features = []
-            for sigma in self.coeffs:
-                # Gaussian Definition: exp( - d^2 / (2 * sigma^2) )
-                gamma = 1.0 / (2.0 * (sigma**2))
-                rbf = torch.exp(-dist_sq * gamma)
-                rbf_features.append(rbf)
+
+            # Gaussian Definition: exp( - d^2 / (2 * sigma^2) )
+            gamma = 1.0 / (2.0 * (self.coeffs**2))
+            rbf = torch.exp(-dist_sq * gamma)
+            rbf_features.append(rbf)
 
             part2 = torch.cat(rbf_features, dim=1)
 
-            # --- Final Concatenation (96 Channels) ---
+            # --- Final Concatenation (6 + 24 = 30 Channels) ---
             baked_color = torch.cat([part1, part2], dim=1)
 
             return baked_color
 
     class BakedColortoOklab(nn.Module):
         """
-        96채널 BakedColor에서 순수 신호(Lp, ap, bp)를 추출하여 평균을 냄.
+        30채널 BakedColor에서 순수 신호(Lp, ap, bp)를 추출하여 평균을 냄.
         Bake.OklabtoBakedColor의 역연산 개념.
         """
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            # x: (B, 96, H, W)
+            # x: (B, 30, H, W)
 
-            # Part 1: Signal Replication 영역 (0~23번 채널) 추출
-            # 구조: [L, a, b, L, a, b, ...] 형태가 8번 반복됨
-            signal_part = x[:, :24, :, :]
+            # Part 1: Signal Replication 영역 (0~5번 채널) 추출
+            # 구조: [L, a, b, L, a, b, ...] 형태가 2번 반복됨
+            signal_part = x[:, :6, :, :]
 
-            # (B, 8, 3, H, W)로 Reshape하여 8번의 반복을 차원으로 분리
-            # dim 1이 반복 횟수(8), dim 2가 채널(3: L,a,b)
-            reshaped = signal_part.view(x.size(0), 8, 3, x.size(2), x.size(3))
+            # (B, 2, 3, H, W)로 Reshape하여 2번의 반복을 차원으로 분리
+            # dim 1이 반복 횟수(2), dim 2가 채널(3: L,a,b)
+            reshaped = signal_part.view(x.size(0), 2, 3, x.size(2), x.size(3))
 
-            # 8개의 반복된 신호에 대해 평균을 구함 -> 노이즈 캔슬링 효과
+            # 2개의 반복된 신호에 대해 평균을 구함 -> 노이즈 캔슬링 효과
             avg_signal = reshaped.mean(dim=1)  # (B, 3, H, W)
 
             return avg_signal
@@ -118,19 +117,19 @@ class Bake:
         def __init__(self):
             super().__init__()
 
-            self.conv1 = nn.Conv2d(96, 96, 1, 1)
-            self.conv2 = nn.Conv2d(96, 96, 1, 1)
-            self.conv3 = nn.Conv2d(96, 96, 1, 1)
-            self.act1 = hh.HeLU2d(96)
-            self.act2 = hh.HeLU2d(96)
-            self.act3 = hh.HeLU2d(96)
-            self.gate1 = hh.HeoGate2d(96)
-            self.gate2 = hh.HeoGate2d(96)
-            self.gate3 = hh.HeoGate2d(96)
+            self.conv1 = nn.Conv2d(30, 30, 1, 1)
+            self.conv2 = nn.Conv2d(30, 30, 1, 1)
+            self.conv3 = nn.Conv2d(30, 30, 1, 1)
+            self.act1 = hh.HeLU2d(30)
+            self.act2 = hh.HeLU2d(30)
+            self.act3 = hh.HeLU2d(30)
+            self.gate1 = hh.HeoGate2d(30)
+            self.gate2 = hh.HeoGate2d(30)
+            self.gate3 = hh.HeoGate2d(30)
 
         def forward(self, baked_color):
             """
-            Input: baked_color (B, 96, H, W)
+            Input: baked_color (B, 30, H, W)
             """
 
             x1 = self.conv1(baked_color)
@@ -164,66 +163,186 @@ class Bake:
 
             return loss.mean()
 
-    class BakeBlock(nn.Module):
-        def __init__(self, dim):
-            super().__init__()
-            self.color_embedding_encoder = Bake.BakedColortoColorEmbedding()
-
-            self.color_embedding_gate = hh.HeoGate2d(dim)
-            self.residual_gate = hh.HeoGate2d(dim)
-
-            self.nemo1 = hh.NeMO33(dim)
-            self.nemo2 = hh.NeMO33(dim)
-
-        def forward(self, x, baked_x_lr):
-            color_embedding = self.color_embedding_encoder(baked_x_lr)
-            residual = x
-
-            x = self.nemo1(x)
-            x = self.color_embedding_gate(x, color_embedding)
-            x = self.nemo2(x)
-            x = self.residual_gate(x, residual)
-
-            return x
-
     class BakeNet(nn.Module):
-        def __init__(self, dim=96):
+        def __init__(self, dim=30):
             super().__init__()
 
-            self.block1 = Bake.BakeBlock(dim)
-            self.block2 = Bake.BakeBlock(dim)
-            self.block3 = Bake.BakeBlock(dim)
-            self.block4 = Bake.BakeBlock(dim)
-            self.block5 = Bake.BakeBlock(dim)
-            self.block6 = Bake.BakeBlock(dim)
-            self.block7 = Bake.BakeBlock(dim)
-            self.block8 = Bake.BakeBlock(dim)
+            self.nemo33_1 = hh.NeMO33(dim)
+            self.nemo55_2 = hh.NeMO55(dim)
+            self.nemo77_3 = hh.NeMO77(dim)
+            self.nemo99_4 = hh.NeMO99(dim)
+            self.nemo1111_5 = hh.NeMO1111(dim)
+            self.nemo1313_6 = hh.NeMO1313(dim)
+            self.nemo1515_7 = hh.NeMO1515(dim)
+            self.nemo1717_8 = hh.NeMO1717(dim)
+            self.nemo1919_9 = hh.NeMO1919(dim)
+            self.nemo2121_10 = hh.NeMO2121(dim)
+            self.nemo1919_11 = hh.NeMO1919(dim)
+            self.nemo1717_12 = hh.NeMO1717(dim)
+            self.nemo1515_13 = hh.NeMO1515(dim)
+            self.nemo1313_14 = hh.NeMO1313(dim)
+            self.nemo1111_15 = hh.NeMO1111(dim)
+            self.nemo99_16 = hh.NeMO99(dim)
+            self.nemo77_17 = hh.NeMO77(dim)
+            self.nemo55_18 = hh.NeMO55(dim)
+            self.nemo33_19 = hh.NeMO33(dim)
+
+            self.color_embedding_1 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_2 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_3 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_4 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_5 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_6 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_7 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_8 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_9 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_10 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_11 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_12 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_13 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_14 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_15 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_16 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_17 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_18 = Bake.BakedColortoColorEmbedding()
+            self.color_embedding_19 = Bake.BakedColortoColorEmbedding()
+
+            self.color_embedding_gate_1 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_2 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_3 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_4 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_5 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_6 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_7 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_8 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_9 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_10 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_11 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_12 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_13 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_14 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_15 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_16 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_17 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_18 = hh.HeoGate2d(dim)
+            self.color_embedding_gate_19 = hh.HeoGate2d(dim)
+
+            self.residual_gate_1 = hh.HeoGate2d(dim)
+            self.residual_gate_2 = hh.HeoGate2d(dim)
+            self.residual_gate_3 = hh.HeoGate2d(dim)
+            self.residual_gate_4 = hh.HeoGate2d(dim)
+            self.residual_gate_5 = hh.HeoGate2d(dim)
+            self.residual_gate_6 = hh.HeoGate2d(dim)
+            self.residual_gate_7 = hh.HeoGate2d(dim)
+            self.residual_gate_8 = hh.HeoGate2d(dim)
+            self.residual_gate_9 = hh.HeoGate2d(dim)
+            self.residual_gate_10 = hh.HeoGate2d(dim)
+            self.residual_gate_11 = hh.HeoGate2d(dim)
+            self.residual_gate_12 = hh.HeoGate2d(dim)
+            self.residual_gate_13 = hh.HeoGate2d(dim)
+            self.residual_gate_14 = hh.HeoGate2d(dim)
+            self.residual_gate_15 = hh.HeoGate2d(dim)
+            self.residual_gate_16 = hh.HeoGate2d(dim)
+            self.residual_gate_17 = hh.HeoGate2d(dim)
+            self.residual_gate_18 = hh.HeoGate2d(dim)
+            self.residual_gate_19 = hh.HeoGate2d(dim)
 
         def forward(self, baked_x_lr):
 
-            x = self.block1(baked_x_lr, baked_x_lr)
-            x = self.block2(x, baked_x_lr)
-            x = self.block3(x, baked_x_lr)
-            x = self.block4(x, baked_x_lr)
-            x = self.block5(x, baked_x_lr)
-            x = self.block6(x, baked_x_lr)
-            x = self.block7(x, baked_x_lr)
-            x = self.block8(x, baked_x_lr)
+            color_embedding_1 = self.color_embedding_1(baked_x_lr)
+            color_embedding_2 = self.color_embedding_2(baked_x_lr)
+            color_embedding_3 = self.color_embedding_3(baked_x_lr)
+            color_embedding_4 = self.color_embedding_4(baked_x_lr)
+            color_embedding_5 = self.color_embedding_5(baked_x_lr)
+            color_embedding_6 = self.color_embedding_6(baked_x_lr)
+            color_embedding_7 = self.color_embedding_7(baked_x_lr)
+            color_embedding_8 = self.color_embedding_8(baked_x_lr)
+            color_embedding_9 = self.color_embedding_9(baked_x_lr)
+            color_embedding_10 = self.color_embedding_10(baked_x_lr)
+            color_embedding_11 = self.color_embedding_11(baked_x_lr)
+            color_embedding_12 = self.color_embedding_12(baked_x_lr)
+            color_embedding_13 = self.color_embedding_13(baked_x_lr)
+            color_embedding_14 = self.color_embedding_14(baked_x_lr)
+            color_embedding_15 = self.color_embedding_15(baked_x_lr)
+            color_embedding_16 = self.color_embedding_16(baked_x_lr)
+            color_embedding_17 = self.color_embedding_17(baked_x_lr)
+            color_embedding_18 = self.color_embedding_18(baked_x_lr)
+            color_embedding_19 = self.color_embedding_19(baked_x_lr)
 
-            return x
+            x1 = self.color_embedding_gate_1(baked_x_lr, color_embedding_1)
+            x2 = self.nemo33_1(x1)
+            x2 = self.residual_gate_1(x2, x1)
 
-    class BakeModel(nn.Module):
-        def __init__(self, dim=96):
-            super().__init__()
-            self.encoder = Bake.OklabtoBakedColor()
-            self.body = Bake.BakeNet(dim)
-            self.decoder = Bake.BakedColortoOklab(dim)
+            x2 = self.color_embedding_gate_2(x2, color_embedding_2)
+            x3 = self.nemo55_2(x2)
+            x3 = self.residual_gate_2(x3, x2)
 
-        def forward(self, x):
+            x3 = self.color_embedding_gate_3(x3, color_embedding_3)
+            x4 = self.nemo77_3(x3)
+            x4 = self.residual_gate_3(x4, x3)
 
-            baked_x = self.encoder(x)
-            baked_residual = self.body(baked_x)
-            out = baked_x + (baked_residual * 0.2)
-            out = self.decoder(out)
+            x4 = self.color_embedding_gate_4(x4, color_embedding_4)
+            x5 = self.nemo99_4(x4)
+            x5 = self.residual_gate_4(x5, x4)
 
-            return out
+            x5 = self.color_embedding_gate_5(x5, color_embedding_5)
+            x6 = self.nemo1111_5(x5)
+            x6 = self.residual_gate_5(x6, x5)
+
+            x6 = self.color_embedding_gate_6(x6, color_embedding_6)
+            x7 = self.nemo1313_6(x6)
+            x7 = self.residual_gate_6(x7, x6)
+
+            x7 = self.color_embedding_gate_7(x7, color_embedding_7)
+            x8 = self.nemo1515_7(x7)
+            x8 = self.residual_gate_7(x8, x7)
+
+            x8 = self.color_embedding_gate_8(x8, color_embedding_8)
+            x9 = self.nemo1717_8(x8)
+            x9 = self.residual_gate_8(x9, x8)
+
+            x9 = self.color_embedding_gate_9(x9, color_embedding_9)
+            x10 = self.nemo1919_9(x9)
+            x10 = self.residual_gate_9(x10, x9)
+
+            x10 = self.color_embedding_gate_10(x10, color_embedding_10)
+            x11 = self.nemo2121_10(x10)
+            x11 = self.residual_gate_10(x11, x10)
+
+            x11 = self.color_embedding_gate_11(x11, color_embedding_11)
+            x12 = self.nemo1919_11(x11)
+            x12 = self.residual_gate_11(x12, x11)
+
+            x12 = self.color_embedding_gate_12(x12, color_embedding_12)
+            x13 = self.nemo1717_12(x12)
+            x13 = self.residual_gate_12(x13, x12)
+
+            x13 = self.color_embedding_gate_13(x13, color_embedding_13)
+            x14 = self.nemo1515_13(x13)
+            x14 = self.residual_gate_13(x14, x13)
+
+            x14 = self.color_embedding_gate_14(x14, color_embedding_14)
+            x15 = self.nemo1313_14(x14)
+            x15 = self.residual_gate_14(x15, x14)
+
+            x15 = self.color_embedding_gate_15(x15, color_embedding_15)
+            x16 = self.nemo1111_15(x15)
+            x16 = self.residual_gate_15(x16, x15)
+
+            x16 = self.color_embedding_gate_16(x16, color_embedding_16)
+            x17 = self.nemo99_16(x16)
+            x17 = self.residual_gate_16(x17, x16)
+
+            x17 = self.color_embedding_gate_17(x17, color_embedding_17)
+            x18 = self.nemo77_17(x17)
+            x18 = self.residual_gate_17(x18, x17)
+
+            x18 = self.color_embedding_gate_18(x18, color_embedding_18)
+            x19 = self.nemo55_18(x18)
+            x19 = self.residual_gate_18(x19, x18)
+
+            x19 = self.color_embedding_gate_19(x19, color_embedding_19)
+            x20 = self.nemo33_19(x19)
+            x20 = self.residual_gate_19(x20, x19)
+
+            return x20

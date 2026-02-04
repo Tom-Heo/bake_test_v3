@@ -180,17 +180,14 @@ class Heo:
             self.conv0 = nn.Conv2d(dim, dim, 3, 1, 1)
             self.conv1 = nn.Conv2d(dim, dim, 1, 1)
             self.conv2 = nn.Conv2d(dim, dim, 1, 1)
-            self.conv3 = nn.Conv2d(dim, dim, 1, 1)
 
             self.act0 = Heo.HeLU2d(dim)
             self.act1 = Heo.HeLU2d(dim)
             self.act2 = Heo.HeLU2d(dim)
-            self.act3 = Heo.HeLU2d(dim)
 
             self.gate0 = Heo.HeoGate2d(dim)
             self.gate1 = Heo.HeoGate2d(dim)
             self.gate2 = Heo.HeoGate2d(dim)
-            self.gate3 = Heo.HeoGate2d(dim)
 
         def forward(self, x: torch.Tensor):
 
@@ -202,16 +199,326 @@ class Heo:
             x0 = x
             x = self.conv1(x)
             x = self.act1(x)
-            x = self.gate1(x0, x)
+            x = self.gate1(x, x0)
 
             x1 = x
             x = self.conv2(x)
             x = self.act2(x)
-            x = self.gate2(x1, x)
+            x = self.gate2(x, x1)
 
-            x2 = x
-            x = self.conv3(x)
-            x = self.act3(x)
-            x = self.gate3(x2, x)
+            return x
+
+    class NeMO55(nn.Module):
+        def __init__(self, dim: int):
+            super().__init__()
+
+            self.conv0 = nn.Conv2d(dim, dim, 5, 1, 2)
+            self.conv1 = nn.Conv2d(dim, dim, 1, 1)
+            self.conv2 = nn.Conv2d(dim, dim, 1, 1)
+
+            self.act0 = Heo.HeLU2d(dim)
+            self.act1 = Heo.HeLU2d(dim)
+            self.act2 = Heo.HeLU2d(dim)
+
+            self.gate0 = Heo.HeoGate2d(dim)
+            self.gate1 = Heo.HeoGate2d(dim)
+            self.gate2 = Heo.HeoGate2d(dim)
+
+        def forward(self, x: torch.Tensor):
+
+            raw = x
+            x = self.conv0(x)
+            x = self.act0(x)
+            x = self.gate0(x, raw)
+
+            x0 = x
+            x = self.conv1(x)
+            x = self.act1(x)
+            x = self.gate1(x, x0)
+
+            x1 = x
+            x = self.conv2(x)
+            x = self.act2(x)
+            x = self.gate2(x, x1)
+
+            return x
+
+    class NeMO77(nn.Module):
+        def __init__(self, dim: int):
+            super().__init__()
+
+            self.conv0 = nn.Conv2d(dim, dim, 7, 1, 3)
+            self.conv1 = nn.Conv2d(dim, dim, 1, 1)
+            self.conv2 = nn.Conv2d(dim, dim, 1, 1)
+
+            self.act0 = Heo.HeLU2d(dim)
+            self.act1 = Heo.HeLU2d(dim)
+            self.act2 = Heo.HeLU2d(dim)
+
+            self.gate0 = Heo.HeoGate2d(dim)
+            self.gate1 = Heo.HeoGate2d(dim)
+            self.gate2 = Heo.HeoGate2d(dim)
+
+        def forward(self, x: torch.Tensor):
+
+            raw = x
+            x = self.conv0(x)
+            x = self.act0(x)
+            x = self.gate0(x, raw)
+
+            x0 = x
+            x = self.conv1(x)
+            x = self.act1(x)
+            x = self.gate1(x, x0)
+
+            x1 = x
+            x = self.conv2(x)
+            x = self.act2(x)
+            x = self.gate2(x, x1)
+
+            return x
+
+    class NeMO99(nn.Module):
+        def __init__(self, dim: int):
+            super().__init__()
+
+            self.conv0 = nn.Conv2d(dim, dim, 9, 1, 4)
+            self.conv1 = nn.Conv2d(dim, dim, 1, 1)
+            self.conv2 = nn.Conv2d(dim, dim, 1, 1)
+
+            self.act0 = Heo.HeLU2d(dim)
+            self.act1 = Heo.HeLU2d(dim)
+            self.act2 = Heo.HeLU2d(dim)
+
+            self.gate0 = Heo.HeoGate2d(dim)
+            self.gate1 = Heo.HeoGate2d(dim)
+            self.gate2 = Heo.HeoGate2d(dim)
+
+        def forward(self, x: torch.Tensor):
+
+            raw = x
+            x = self.conv0(x)
+            x = self.act0(x)
+            x = self.gate0(x, raw)
+
+            x0 = x
+            x = self.conv1(x)
+            x = self.act1(x)
+            x = self.gate1(x, x0)
+
+            x1 = x
+            x = self.conv2(x)
+            x = self.act2(x)
+            x = self.gate2(x, x1)
+
+            return x
+
+    class NeMO1111(nn.Module):
+        def __init__(self, dim: int):
+            super().__init__()
+
+            self.conv0 = nn.Conv2d(dim, dim, 11, 1, 5)
+            self.conv1 = nn.Conv2d(dim, dim, 1, 1)
+            self.conv2 = nn.Conv2d(dim, dim, 1, 1)
+
+            self.act0 = Heo.HeLU2d(dim)
+            self.act1 = Heo.HeLU2d(dim)
+            self.act2 = Heo.HeLU2d(dim)
+
+            self.gate0 = Heo.HeoGate2d(dim)
+            self.gate1 = Heo.HeoGate2d(dim)
+            self.gate2 = Heo.HeoGate2d(dim)
+
+        def forward(self, x: torch.Tensor):
+
+            raw = x
+            x = self.conv0(x)
+            x = self.act0(x)
+            x = self.gate0(x, raw)
+
+            x0 = x
+            x = self.conv1(x)
+            x = self.act1(x)
+            x = self.gate1(x, x0)
+
+            x1 = x
+            x = self.conv2(x)
+            x = self.act2(x)
+            x = self.gate2(x, x1)
+
+            return x
+
+    class NeMO1313(nn.Module):
+        def __init__(self, dim: int):
+            super().__init__()
+
+            self.conv0 = nn.Conv2d(dim, dim, 13, 1, 6)
+            self.conv1 = nn.Conv2d(dim, dim, 1, 1)
+            self.conv2 = nn.Conv2d(dim, dim, 1, 1)
+
+            self.act0 = Heo.HeLU2d(dim)
+            self.act1 = Heo.HeLU2d(dim)
+            self.act2 = Heo.HeLU2d(dim)
+
+            self.gate0 = Heo.HeoGate2d(dim)
+            self.gate1 = Heo.HeoGate2d(dim)
+            self.gate2 = Heo.HeoGate2d(dim)
+
+        def forward(self, x: torch.Tensor):
+
+            raw = x
+            x = self.conv0(x)
+            x = self.act0(x)
+            x = self.gate0(x, raw)
+
+            x0 = x
+            x = self.conv1(x)
+            x = self.act1(x)
+            x = self.gate1(x, x0)
+
+            x1 = x
+            x = self.conv2(x)
+            x = self.act2(x)
+            x = self.gate2(x, x1)
+
+            return x
+
+    class NeMO1515(nn.Module):
+        def __init__(self, dim: int):
+            super().__init__()
+
+            self.conv0 = nn.Conv2d(dim, dim, 15, 1, 7)
+            self.conv1 = nn.Conv2d(dim, dim, 1, 1)
+            self.conv2 = nn.Conv2d(dim, dim, 1, 1)
+
+            self.act0 = Heo.HeLU2d(dim)
+            self.act1 = Heo.HeLU2d(dim)
+            self.act2 = Heo.HeLU2d(dim)
+
+            self.gate0 = Heo.HeoGate2d(dim)
+            self.gate1 = Heo.HeoGate2d(dim)
+            self.gate2 = Heo.HeoGate2d(dim)
+
+        def forward(self, x: torch.Tensor):
+
+            raw = x
+            x = self.conv0(x)
+            x = self.act0(x)
+            x = self.gate0(x, raw)
+
+            x0 = x
+            x = self.conv1(x)
+            x = self.act1(x)
+            x = self.gate1(x, x0)
+
+            x1 = x
+            x = self.conv2(x)
+            x = self.act2(x)
+            x = self.gate2(x, x1)
+
+            return x
+
+    class NeMO1717(nn.Module):
+        def __init__(self, dim: int):
+            super().__init__()
+
+            self.conv0 = nn.Conv2d(dim, dim, 17, 1, 8)
+            self.conv1 = nn.Conv2d(dim, dim, 1, 1)
+            self.conv2 = nn.Conv2d(dim, dim, 1, 1)
+
+            self.act0 = Heo.HeLU2d(dim)
+            self.act1 = Heo.HeLU2d(dim)
+            self.act2 = Heo.HeLU2d(dim)
+
+            self.gate0 = Heo.HeoGate2d(dim)
+            self.gate1 = Heo.HeoGate2d(dim)
+            self.gate2 = Heo.HeoGate2d(dim)
+
+        def forward(self, x: torch.Tensor):
+
+            raw = x
+            x = self.conv0(x)
+            x = self.act0(x)
+            x = self.gate0(x, raw)
+
+            x0 = x
+            x = self.conv1(x)
+            x = self.act1(x)
+            x = self.gate1(x, x0)
+
+            x1 = x
+            x = self.conv2(x)
+            x = self.act2(x)
+            x = self.gate2(x, x1)
+
+            return x
+
+    class NeMO1919(nn.Module):
+        def __init__(self, dim: int):
+            super().__init__()
+
+            self.conv0 = nn.Conv2d(dim, dim, 19, 1, 9)
+            self.conv1 = nn.Conv2d(dim, dim, 1, 1)
+            self.conv2 = nn.Conv2d(dim, dim, 1, 1)
+
+            self.act0 = Heo.HeLU2d(dim)
+            self.act1 = Heo.HeLU2d(dim)
+            self.act2 = Heo.HeLU2d(dim)
+
+            self.gate0 = Heo.HeoGate2d(dim)
+            self.gate1 = Heo.HeoGate2d(dim)
+            self.gate2 = Heo.HeoGate2d(dim)
+
+        def forward(self, x: torch.Tensor):
+
+            raw = x
+            x = self.conv0(x)
+            x = self.act0(x)
+            x = self.gate0(x, raw)
+
+            x0 = x
+            x = self.conv1(x)
+            x = self.act1(x)
+            x = self.gate1(x, x0)
+
+            x1 = x
+            x = self.conv2(x)
+            x = self.act2(x)
+            x = self.gate2(x, x1)
+
+            return x
+
+    class NeMO2121(nn.Module):
+        def __init__(self, dim: int):
+            super().__init__()
+
+            self.conv0 = nn.Conv2d(dim, dim, 21, 1, 10)
+            self.conv1 = nn.Conv2d(dim, dim, 1, 1)
+            self.conv2 = nn.Conv2d(dim, dim, 1, 1)
+
+            self.act0 = Heo.HeLU2d(dim)
+            self.act1 = Heo.HeLU2d(dim)
+            self.act2 = Heo.HeLU2d(dim)
+
+            self.gate0 = Heo.HeoGate2d(dim)
+            self.gate1 = Heo.HeoGate2d(dim)
+            self.gate2 = Heo.HeoGate2d(dim)
+
+        def forward(self, x: torch.Tensor):
+
+            raw = x
+            x = self.conv0(x)
+            x = self.act0(x)
+            x = self.gate0(x, raw)
+
+            x0 = x
+            x = self.conv1(x)
+            x = self.act1(x)
+            x = self.gate1(x, x0)
+
+            x1 = x
+            x = self.conv2(x)
+            x = self.act2(x)
+            x = self.gate2(x, x1)
 
             return x
