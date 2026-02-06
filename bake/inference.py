@@ -109,7 +109,7 @@ def inference(args):
             # C. RGB -> Oklab (3ch)
             input_oklab = srgb_to_oklab(input_padded)
 
-            # D. Oklab -> Baked (96ch)
+            # D. Oklab -> Baked (30ch)
             input_baked = to_baked(input_oklab)
 
             # E. Network Inference

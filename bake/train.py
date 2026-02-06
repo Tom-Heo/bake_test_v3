@@ -70,9 +70,9 @@ def train(config, args):
     model = Bake.BakeNet(dim=config.BAKE_DIM).to(device)
 
     # 변환기 (Freeze) - 학습 파라미터 없음
-    # 3ch -> 96ch
+    # 3ch -> 30ch
     to_baked = Bake.OklabtoBakedColor().to(device)
-    # 96ch -> 3ch (검증용)
+    # 30ch -> 3ch (검증용)
     to_oklab = Bake.BakedColortoOklab().to(device)
     # 3ch -> RGB (시각화용)
     to_rgb = Palette.OklabtosRGB().to(device)
@@ -123,18 +123,18 @@ def train(config, args):
             input_3ch = input_3ch.to(device)
             target_3ch = target_3ch.to(device)
 
-            # --- [Core Logic: 3ch -> 96ch Conversion] ---
+            # --- [Core Logic: 3ch -> 30ch Conversion] ---
             # 학습 효율을 위해 GPU에서 변환 수행
             with torch.no_grad():
-                input_96ch = to_baked(input_3ch)  # (B, 96, H, W)
-                target_96ch = to_baked(target_3ch)  # (B, 96, H, W)
+                input_30ch = to_baked(input_3ch)  # (B, 30, H, W)
+                target_30ch = to_baked(target_3ch)  # (B, 30, H, W)
 
             # --- Forward ---
-            # Input도 96ch로 변환된 상태로 BakeNet에 진입
-            pred_96ch = model(input_96ch)
+            # Input도 30ch로 변환된 상태로 BakeNet에 진입
+            pred_30ch = model(input_30ch)
 
-            # --- Loss (96ch Space) ---
-            loss = criterion(pred_96ch, target_96ch)
+            # --- Loss (30ch Space) ---
+            loss = criterion(pred_30ch, target_30ch)
 
             # --- Backward ---
             optimizer.zero_grad()
@@ -188,15 +188,15 @@ def train(config, args):
                     v_in_3ch = v_in_3ch.to(device)
                     v_gt_3ch = v_gt_3ch.to(device)
 
-                    # 1. Convert Input 3ch -> 96ch
-                    v_in_96ch = to_baked(v_in_3ch)
+                    # 1. Convert Input 3ch -> 30ch
+                    v_in_30ch = to_baked(v_in_3ch)
 
-                    # 2. Inference (Network Output: 96ch)
-                    v_pred_96ch = model(v_in_96ch)
+                    # 2. Inference (Network Output: 30ch)
+                    v_pred_30ch = model(v_in_30ch)
 
                     # 3. Restore to RGB for Metric & Visualization
-                    # (96ch -> 3ch Oklab)
-                    v_pred_3ch = to_oklab(v_pred_96ch)
+                    # (30ch -> 3ch Oklab)
+                    v_pred_3ch = to_oklab(v_pred_30ch)
 
                     # (3ch Oklab -> 3ch RGB)
                     v_pred_rgb = to_rgb(v_pred_3ch)
